@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hiệu Ứng Chữ Trong Suốt Neon & Trái Tim Xanh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS Reset & Hide default cursor */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030712; /* Dark ambient background */
+            cursor: none; /* Hide default mouse cursor */
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Ambient background glow */
+        .ambient-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60vw;
+            height: 60vh;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.08) 0%, rgba(3, 7, 18, 0) 70%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Overlay UI elements */
+        .ui-container {
+            position: absolute;
+            top: 2rem;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hint-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 191, 255, 0.1);
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            color: #93c5fd;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            transition: all 0.3s ease;
+            text-align: center;
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                border-color: rgba(56, 189, 248, 0.2);
+                box-shadow: 0 0 15px rgba(14, 165, 233, 0.1);
+            }
+            100% {
+                border-color: rgba(56, 189, 248, 0.5);
+                box-shadow: 0 0 25px rgba(14, 165, 233, 0.3);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Subtle Background Glow -->
+    <div class="ambient-glow"></div>
+
+    <!-- UI Hint -->
+    <div class="ui-container">
+        <div class="hint-card flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span>Di chuyển chuột &amp; Nhấp vào màn hình để hiện chữ tình yêu</span>
+        </div>
+    </div>
+
+    <!-- Canvas Animation Layer -->
+    <canvas id="heartCanvas"></canvas>
+
+    <script>
+        window.addEventListener('load', () => {
+            const canvas = document.getElementById('heartCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Set Canvas Dimensions
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Mouse position state
+            const mouse = {
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+                isHovered: false
+            };
+
+            // Love English Words List
+            const loveWords = [
+                'Love', 'Amore', 'Passion', 'Adore', 'Soulmate', 
+                'Devotion', 'Affection', 'Romance', 'Forever', 'Eternity', 
+                'Heart', 'Sweetheart', 'Cherish', 'Infatuation', 'Beloved', 'Endless'
+            ];
+
+            // Color Palette for Neon Blue Hearts
+            const bluePalette = [
+                '#00f3ff', // Bright Cyan / Electric Blue
+                '#38bdf8', // Sky Blue
+                '#60a5fa', // Soft Blue
+                '#1d4ed8', // Deep Royal Blue
+                '#93c5fd', // Light Powder Blue
+                '#00d2ff'  // Vivid Cyan
+            ];
+
+            function getRandomBlue() {
+                return bluePalette[Math.floor(Math.random() * bluePalette.length)];
+            }
+
+            function getRandomLoveWord() {
+                return loveWords[Math.floor(Math.random() * loveWords.length)];
+            }
+
+            // Draw a Heart Shape on Canvas
+            function drawHeart(ctx, x, y, size, color, alpha = 1, rotation = 0, glow = true) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                ctx.beginPath();
+                ctx.globalAlpha = Math.max(0, alpha);
+
+                if (glow) {
+                    ctx.shadowColor = color;
+                    ctx.shadowBlur = size * 1.5;
+                }
+
+                const topCurveHeight = size * 0.3;
+                ctx.moveTo(0, topCurveHeight);
+                
+                ctx.bezierCurveTo(0, 0, -size / 2, 0, -size / 2, topCurveHeight);
+                ctx.bezierCurveTo(-size / 2, (size + topCurveHeight) / 2, 0, size * 0.9, 0, size);
+                ctx.bezierCurveTo(0, size * 0.9, size / 2, (size + topCurveHeight) / 2, size / 2, topCurveHeight);
+                ctx.bezierCurveTo(size / 2, 0, 0, 0, 0, topCurveHeight);
+
+                ctx.closePath();
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Transparent Glassmorphism Glowing Text Class (No Big Heart Background)
+            class TransparentLoveText {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.word = getRandomLoveWord();
+                    this.fontSize = 8;
+                    // Adjusted to a delicate, refined size range (16px - 28px)
+                    this.targetFontSize = Math.floor(Math.random() * 12 + 16); 
+                    this.alpha = 1;
+                    this.decay = 0.009; // Smooth fade out
+                    this.vy = -0.5; // Floating upward slowly
+                    this.scaleSpeed = 0.12;
+                    this.pulse = 0;
+                }
+
+                update() {
+                    // Smooth scale up effect on click
+                    if (this.fontSize < this.targetFontSize) {
+                        this.fontSize += (this.targetFontSize - this.fontSize) * this.scaleSpeed;
+                    }
+
+                    this.y += this.vy;
+                    this.pulse += 0.04;
+                    this.alpha -= this.decay;
+                }
+
+                draw(ctx) {
+                    if (this.alpha <= 0) return;
+
+                    ctx.save();
+                    const currentPulse = Math.sin(this.pulse) * 0.8;
+                    const displayFontSize = Math.max(10, Math.floor(this.fontSize + currentPulse));
+
+                    ctx.translate(this.x, this.y);
+                    ctx.font = `500 ${displayFontSize}px 'Inter', sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    // 1. Semi-transparent inner text fill (Glassmorphism effect)
+                    ctx.globalAlpha = Math.max(0, this.alpha * 0.2);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillText(this.word, 0, 0);
+
+                    // 2. Neon Cyan Glow & Subtle Stroke Outline
+                    ctx.globalAlpha = Math.max(0, this.alpha);
+                    ctx.shadowColor = '#00f3ff';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeStyle = '#e0f2fe'; // Subtle cyan-white stroke
+                    ctx.lineWidth = 1.2;
+                    ctx.strokeText(this.word, 0, 0);
+
+                    // 3. Crisp inner highlight line
+                    ctx.shadowBlur = 2;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 0.6;
+                    ctx.strokeText(this.word, 0, 0);
+
+                    ctx.restore();
+                }
+            }
+
+            // Standard Burst Heart Particle
+            class HeartParticle {
+                constructor(x, y, options = {}) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = options.size || Math.random() * 12 + 6;
+                    this.color = options.color || getRandomBlue();
+                    
+                    const angle = options.angle !== undefined ? options.angle : Math.random() * Math.PI * 2;
+                    const speed = options.speed !== undefined ? options.speed : (Math.random() * 7 + 2);
+                    
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    
+                    this.rotation = (Math.random() - 0.5) * 0.5;
+                    this.rotationSpeed = (Math.random() - 0.5) * 0.08;
+                    
+                    this.alpha = 1;
+                    this.decay = options.decay || (Math.random() * 0.018 + 0.01);
+                    this.gravity = options.gravity !== undefined ? options.gravity : 0.06;
+                    this.friction = 0.96;
+                }
+
+                update() {
+                    this.vx *= this.friction;
+                    this.vy *= this.friction;
+                    this.vy += this.gravity;
+                    
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    
+                    this.rotation += this.rotationSpeed;
+                    this.alpha -= this.decay;
+                }
+
+                draw(ctx) {
+                    if (this.alpha <= 0) return;
+                    drawHeart(ctx, this.x, this.y, this.size, this.color, this.alpha, this.rotation, true);
+                }
+            }
+
+            // Trail Particle (For Mouse Movement)
+            class TrailParticle {
+                constructor(x, y) {
+                    this.x = x + (Math.random() - 0.5) * 10;
+                    this.y = y + (Math.random() - 0.5) * 10;
+                    this.size = Math.random() * 8 + 4;
+                    this.color = getRandomBlue();
+                    this.vx = (Math.random() - 0.5) * 1.5;
+                    this.vy = (Math.random() - 0.5) * 1.5 - 0.5;
+                    this.alpha = 0.8;
+                    this.decay = Math.random() * 0.025 + 0.02;
+                    this.rotation = (Math.random() - 0.5) * 0.4;
+                }
+
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.alpha -= this.decay;
+                    this.size = Math.max(0, this.size - 0.05);
+                }
+
+                draw(ctx) {
+                    if (this.alpha <= 0) return;
+                    drawHeart(ctx, this.x, this.y, this.size, this.color, this.alpha, this.rotation, false);
+                }
+            }
+
+            // Particle Storage Arrays
+            const particles = [];
+            const trailParticles = [];
+            const loveTexts = [];
+
+            // Trigger Full Explosion & Transparent Text
+            function triggerHeartBurst(x, y) {
+                // 1. Create transparent glowing love text at click coordinates (No background heart)
+                loveTexts.push(new TransparentLoveText(x, y));
+
+                // 2. Heart-shaped particle burst pattern
+                const particleCount = 45;
+                for (let i = 0; i < particleCount; i++) {
+                    const t = (Math.PI * 2 / particleCount) * i;
+                    const heartX = 16 * Math.pow(Math.sin(t), 3);
+                    const heartY = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                    
+                    const angle = Math.atan2(heartY, heartX);
+                    const speed = Math.sqrt(heartX * heartX + heartY * heartY) * 0.45 + (Math.random() * 2);
+
+                    particles.push(new HeartParticle(x, y, {
+                        angle: angle,
+                        speed: speed,
+                        size: Math.random() * 10 + 7,
+                        color: getRandomBlue(),
+                        gravity: 0.04,
+                        decay: Math.random() * 0.015 + 0.01
+                    }));
+                }
+
+                // 3. Random background sparkles
+                for (let i = 0; i < 20; i++) {
+                    particles.push(new HeartParticle(x, y, {
+                        speed: Math.random() * 9 + 2,
+                        size: Math.random() * 5 + 3,
+                        color: '#ffffff',
+                        decay: Math.random() * 0.03 + 0.015
+                    }));
+                }
+            }
+
+            // Mouse Movement & Trail Logic
+            let lastTrailTime = 0;
+            const TRAIL_THROTTLE_MS = 25;
+
+            function spawnMouseTrail(x, y) {
+                const now = performance.now();
+                if (now - lastTrailTime > TRAIL_THROTTLE_MS) {
+                    trailParticles.push(new TrailParticle(x, y));
+                    lastTrailTime = now;
+                }
+            }
+
+            // Custom Heart Cursor Renderer
+            function drawCustomCursor(ctx, x, y) {
+                if (!mouse.isHovered) return;
+                
+                // Outer Glow Cursor Heart
+                drawHeart(ctx, x, y - 6, 16, '#00f3ff', 0.9, -0.1, true);
+                // Inner Bright Core
+                drawHeart(ctx, x, y - 5, 10, '#ffffff', 1, -0.1, false);
+            }
+
+            // --- Event Listeners --- //
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+                mouse.isHovered = true;
+
+                spawnMouseTrail(mouse.x, mouse.y);
+            });
+
+            window.addEventListener('mouseleave', () => {
+                mouse.isHovered = false;
+            });
+
+            window.addEventListener('mouseenter', () => {
+                mouse.isHovered = true;
+            });
+
+            window.addEventListener('click', (e) => {
+                triggerHeartBurst(e.clientX, e.clientY);
+            });
+
+            // Touch device support
+            window.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    mouse.x = touch.clientX;
+                    mouse.y = touch.clientY;
+                    mouse.isHovered = true;
+                    triggerHeartBurst(touch.clientX, touch.clientY);
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    mouse.x = touch.clientX;
+                    mouse.y = touch.clientY;
+                    spawnMouseTrail(touch.clientX, touch.clientY);
+                }
+            }, { passive: true });
+
+            // --- Main Animation Loop --- //
+
+            function animate() {
+                // Clear screen with dark background and trail fade
+                ctx.fillStyle = 'rgba(3, 7, 18, 0.22)'; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Update & Render Trail Particles
+                for (let i = trailParticles.length - 1; i >= 0; i--) {
+                    trailParticles[i].update();
+                    trailParticles[i].draw(ctx);
+                    if (trailParticles[i].alpha <= 0) {
+                        trailParticles.splice(i, 1);
+                    }
+                }
+
+                // Update & Render Burst Particles
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].draw(ctx);
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+
+                // Update & Render Transparent Love Words
+                for (let i = loveTexts.length - 1; i >= 0; i--) {
+                    loveTexts[i].update();
+                    loveTexts[i].draw(ctx);
+                    if (loveTexts[i].alpha <= 0) {
+                        loveTexts.splice(i, 1);
+                    }
+                }
+
+                // Render Custom Cursor Heart on Top
+                drawCustomCursor(ctx, mouse.x, mouse.y);
+
+                requestAnimationFrame(animate);
+            }
+
+            // Start animation
+            animate();
+        });
+    </script>
+</body>
+</html>
